@@ -3,35 +3,42 @@ import requests
 from django.core.files.base import ContentFile
 from pathlib import Path
 from urllib.parse import urlparse
-from .models import InstagramAccount, InstagramPost
-
+from .models import InstagramAccount, InstagramPost, InstagramMedia
 
 def scrape_instagram_account(username):
     L = instaloader.Instaloader()
-    profile = instaloader.Profile.from_username(L.context, username)
 
+    profile = instaloader.Profile.from_username(L.context, username)
     account, created = InstagramAccount.objects.get_or_create(username=username)
 
     for post in profile.get_posts():
-        # Descargar la imagen o video
-        image_response = requests.get(post.url)
-        image_name = Path(urlparse(post.url).path).name
-
-        insta_post = InstagramPost.objects.create(
+        insta_post, created = InstagramPost.objects.get_or_create(
             account=account,
             post_id=post.shortcode,
-            description=post.caption,
-            timestamp=post.date
+            defaults={
+                'description': post.caption,
+                'timestamp': post.date
+            }
         )
+        if post.typename == 'GraphImage':
+            download_media(post.url, insta_post, 'image')
+        elif post.typename == 'GraphVideo':
+            download_media(post.video_url, insta_post, 'video')
+        elif post.typename == 'GraphSidecar':
+            for media in post.get_sidecar_nodes():
+                if media.is_video:
+                    download_media(media.video_url, insta_post, 'video')
+                else:
+                    download_media(media.display_url, insta_post, 'image')
 
-        # Guardar la imagen
-        insta_post.image_url.save(image_name, ContentFile(image_response.content))
-
-        # Si es un video, descargar el video y guardarlo
-        if post.is_video:
-            video_response = requests.get(post.video_url)
-            video_name = Path(urlparse(post.video_url).path).name
-            insta_post.video.save(video_name, ContentFile(video_response.content))
-
-        if InstagramPost.objects.filter(account=account).count() >= 2:
+        if InstagramPost.objects.filter(account=account).count() >= 3:
             break
+
+def download_media(media_url, insta_post, media_type):
+    media_response = requests.get(media_url)
+    media_name = Path(urlparse(media_url).path).name
+    InstagramMedia.objects.create(
+        post=insta_post,
+        media_type=media_type,
+        media_url=ContentFile(media_response.content, name=media_name)
+    )
