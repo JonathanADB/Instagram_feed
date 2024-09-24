@@ -11,6 +11,14 @@ def scrape_instagram_account(username):
     profile = instaloader.Profile.from_username(L.context, username)
     account, created = InstagramAccount.objects.get_or_create(username=username)
 
+    profile_pic_url = profile.profile_pic_url
+    if profile_pic_url:
+        response = requests.get(profile_pic_url)
+        if response.status_code == 200:
+            image_name = Path(urlparse(profile_pic_url).path).name
+            account.profile_picture.save(image_name, ContentFile(response.content), save=True)
+
+
     for post in profile.get_posts():
         insta_post, created = InstagramPost.objects.get_or_create(
             account=account,
@@ -33,6 +41,7 @@ def scrape_instagram_account(username):
 
         if InstagramPost.objects.filter(account=account).count() >= 3:
             break
+
 
 def download_media(media_url, insta_post, media_type):
     media_response = requests.get(media_url)
