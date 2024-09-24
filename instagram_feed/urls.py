@@ -1,10 +1,8 @@
 from django.urls import path
-from . import views
-
-
+from .views import account_list
 
 
 urlpatterns = [
-    path('instagram/', views.get_instagram_posts),
+    path('get_posts/', account_list, name='acount-list'),
 
 ]

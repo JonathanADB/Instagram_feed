@@ -1,4 +1,6 @@
 from django.contrib import admin
+from django.utils.html import format_html
+
 from .models import InstagramAccount, InstagramPost, InstagramMedia
 from .utils import scrape_instagram_account
 
