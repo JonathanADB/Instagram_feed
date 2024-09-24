@@ -1,3 +1,6 @@
+from rest_framework import serializers
+from .models import *
+
 class InstagramMediaSerializer(serializers.ModelSerializer):
     class Meta:
         model = InstagramMedia
